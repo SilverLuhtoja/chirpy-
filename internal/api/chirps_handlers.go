@@ -1,44 +1,46 @@
-package main
+package api
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
-	db "github.com/SilverLuhtoja/chirpy/internal/database"
 	"github.com/go-chi/chi/v5"
 )
 
-type message struct {
+type messageChirp struct {
 	Body string `json:"body"`
 }
 
-type apiConfig struct {
-	fileserverHits int
-	db             *db.DB
+func (cfg *ApiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.Db.GetChirps()
+	if err != nil {
+		message := fmt.Sprintf("Couldn't get chirps: %v", err)
+		respondWithError(w, http.StatusInternalServerError, message)
+		return
+	}
+
+	param, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
+	if err != nil {
+		message := fmt.Sprintf("error with conversion: %v", err)
+		respondWithError(w, http.StatusInternalServerError, message)
+		return
+	}
+	for _, chirp := range chirps {
+		if chirp.Id == param {
+			respondWithJSON(w, 200, chirp)
+			return
+		}
+	}
+	http.NotFound(w, r)
 }
 
-func newApiRouter(apiConfig *apiConfig) *chi.Mux {
-	apiRouter := chi.NewRouter()
-	apiRouter.Get("/healthz", serverReadiness)
-	apiRouter.Get("/metrics", apiConfig.showMetrics)
-	apiRouter.HandleFunc("/reset", apiConfig.resetMetrics)
-	apiRouter.Post("/chirps", apiConfig.saveChirp)
-	apiRouter.Get("/chirps", apiConfig.getChirps)
-	return apiRouter
-}
-
-func serverReadiness(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(200)
-	w.Write([]byte("OK"))
-}
-
-func (cfg *apiConfig) saveChirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	params := message{}
+	params := messageChirp{}
 	err := decoder.Decode(&params)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters")
@@ -49,8 +51,7 @@ func (cfg *apiConfig) saveChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//  if all good
-	chirp, err := cfg.db.CreateChirp(cleanInput(params.Body))
+	chirp, err := cfg.Db.SaveChirp(cleanInput(params.Body))
 	if err != nil {
 		message := fmt.Sprintf("Couldn't create chirp: %v", err)
 		respondWithError(w, http.StatusInternalServerError, message)
@@ -59,8 +60,8 @@ func (cfg *apiConfig) saveChirp(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 201, chirp)
 }
 
-func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-	res, err := cfg.db.GetChirps()
+func (cfg *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
+	res, err := cfg.Db.GetChirps()
 	if err != nil {
 		message := fmt.Sprintf("Couldn't get chirps: %v", err)
 		respondWithError(w, http.StatusInternalServerError, message)

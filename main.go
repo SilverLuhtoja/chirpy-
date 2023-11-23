@@ -1,31 +1,32 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/SilverLuhtoja/chirpy/internal/api"
 	db "github.com/SilverLuhtoja/chirpy/internal/database"
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	db, err := db.NewDB("database.json")
-	if err != nil {
-		log.Fatal("couldn't create database")
-	}
-
 	port := "8080"
-	apiConfig := &apiConfig{db: db}
+	godotenv.Load()
+	jwtSecret := os.Getenv("JWT_SECRET")
+	db := db.NewDB("database.json")
+	apiConfig := &api.ApiConfig{Db: db, JWT: jwtSecret}
+
 	router := chi.NewRouter()
-	apiRouter := newApiRouter(apiConfig)
+	apiRouter := api.NewApiRouter(apiConfig)
 	amdminRouter := chi.NewRouter()
 	fsHandler := http.StripPrefix("/app", http.FileServer(http.Dir(".")))
 
-	router.Handle("/app/*", apiConfig.middlewareMetricsInc(fsHandler))
-	router.Handle("/app", apiConfig.middlewareMetricsInc(fsHandler))
-	amdminRouter.Get("/metrics", apiConfig.renderAdminMetrics)
+	router.Handle("/app/*", apiConfig.MiddlewareMetricsInc(fsHandler))
+	router.Handle("/app", apiConfig.MiddlewareMetricsInc(fsHandler))
+	amdminRouter.Get("/metrics", apiConfig.RenderAdminMetrics)
 	router.Mount("/api", apiRouter)
 	router.Mount("/admin", amdminRouter)
 
@@ -39,17 +40,4 @@ func main() {
 
 	log.Printf("Server running on: http://localhost:%s/app\n", port)
 	log.Fatal(server.ListenAndServe())
-}
-
-func (cfg *apiConfig) renderAdminMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	message := fmt.Sprintf(`
-	<html>
-		<body>
-			<h1>Welcome, Chirpy Admin</h1>
-			<p>Chirpy has been visited %d times!</p>
-		</body>
-	</html>`, cfg.fileserverHits)
-	w.Write([]byte(message))
 }
