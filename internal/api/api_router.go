@@ -17,6 +17,8 @@ func NewApiRouter(apiConfig *ApiConfig) *chi.Mux {
 	apiRouter.Post("/users", apiConfig.createUser)
 	apiRouter.Put("/users", apiConfig.updateUser)
 	apiRouter.Post("/login", apiConfig.logIn)
+	apiRouter.Post("/refresh", apiConfig.refresh)
+	apiRouter.Post("/revoke", apiConfig.revoke)
 
 	return apiRouter
 }

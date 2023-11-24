@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -68,18 +66,4 @@ func (cfg *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondWithJSON(w, 200, res)
-}
-
-func cleanInput(paramsBody string) string {
-	message := strings.Split(paramsBody, " ")
-	cleaned := []string{}
-	bad_words := []string{"kerfuffle", "sharbert", "fornax"}
-	for _, word := range message {
-		if slices.Contains(bad_words, strings.ToLower(word)) {
-			cleaned = append(cleaned, "****")
-		} else {
-			cleaned = append(cleaned, word)
-		}
-	}
-	return strings.Join(cleaned, " ")
 }

@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
+	"strings"
 
 	db "github.com/SilverLuhtoja/chirpy/internal/database"
 )
@@ -44,6 +46,36 @@ func getParamsFromRequest[T interface{}](structBody T, r *http.Request) (T, erro
 	}
 
 	return params, nil
+}
+
+func (cfg *ApiConfig) validateParams(w http.ResponseWriter, params userResource) error {
+	if params.Password == "" {
+		return errors.New("password cant be empty")
+	}
+	if params.Email == "" {
+		return errors.New("email cant be empty")
+	}
+
+	_, err := cfg.Db.GetUserByEmail(params.Email)
+	if err == nil {
+		return errors.New("email is already in use")
+	}
+
+	return nil
+}
+
+func cleanInput(paramsBody string) string {
+	message := strings.Split(paramsBody, " ")
+	cleaned := []string{}
+	bad_words := []string{"kerfuffle", "sharbert", "fornax"}
+	for _, word := range message {
+		if slices.Contains(bad_words, strings.ToLower(word)) {
+			cleaned = append(cleaned, "****")
+		} else {
+			cleaned = append(cleaned, word)
+		}
+	}
+	return strings.Join(cleaned, " ")
 }
 
 func serverReadiness(w http.ResponseWriter, r *http.Request) {

@@ -8,6 +8,8 @@ import (
 	"log"
 	"os"
 	"sync"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type DB struct {
@@ -18,6 +20,7 @@ type DB struct {
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
 	Users  map[int]User  `json:"users"`
+	Tokens []*jwt.Token  `json:"tokens"`
 }
 
 func NewDB(path string) *DB {
@@ -52,7 +55,7 @@ func (db *DB) LoadDB() (DBStructure, error) {
 	structure := DBStructure{}
 
 	if len(data) == 0 {
-		return DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User)}, nil
+		return DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User), Tokens: []*jwt.Token{}}, nil
 	}
 
 	err = json.Unmarshal(data, &structure)
