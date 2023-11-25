@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"slices"
@@ -32,8 +33,8 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 
-func respondWithError(w http.ResponseWriter, code int, msg string) {
-	respondWithJSON(w, code, map[string]string{"error": msg})
+func respondWithError(w http.ResponseWriter, code int, err error) {
+	respondWithJSON(w, code, map[string]string{"error": fmt.Sprintf("%+v", err)})
 }
 
 func getParamsFromRequest[T interface{}](structBody T, r *http.Request) (T, error) {
@@ -68,6 +69,7 @@ func cleanInput(paramsBody string) string {
 	message := strings.Split(paramsBody, " ")
 	cleaned := []string{}
 	bad_words := []string{"kerfuffle", "sharbert", "fornax"}
+
 	for _, word := range message {
 		if slices.Contains(bad_words, strings.ToLower(word)) {
 			cleaned = append(cleaned, "****")
@@ -75,6 +77,7 @@ func cleanInput(paramsBody string) string {
 			cleaned = append(cleaned, word)
 		}
 	}
+
 	return strings.Join(cleaned, " ")
 }
 

@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -10,21 +10,20 @@ import (
 )
 
 type messageChirp struct {
-	Body string `json:"body"`
+	AuthorId string `json:"author_id"`
+	Body     string `json:"body"`
 }
 
 func (cfg *ApiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
 	chirps, err := cfg.Db.GetChirps()
 	if err != nil {
-		message := fmt.Sprintf("Couldn't get chirps: %v", err)
-		respondWithError(w, http.StatusInternalServerError, message)
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	param, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
 	if err != nil {
-		message := fmt.Sprintf("error with conversion: %v", err)
-		respondWithError(w, http.StatusInternalServerError, message)
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 	for _, chirp := range chirps {
@@ -41,18 +40,23 @@ func (cfg *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 	params := messageChirp{}
 	err := decoder.Decode(&params)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Couldn't decode parameters")
+		respondWithError(w, http.StatusInternalServerError, errors.New("couldn't decode parameters"))
 		return
 	}
 	if len(params.Body) > 140 {
-		respondWithError(w, 400, "Chirp is too long")
+		respondWithError(w, 400, errors.New("chirp is too long"))
 		return
 	}
 
-	chirp, err := cfg.Db.SaveChirp(cleanInput(params.Body))
+	user_id, err := cfg.getUserIdFromAccessToken(r)
 	if err != nil {
-		message := fmt.Sprintf("Couldn't create chirp: %v", err)
-		respondWithError(w, http.StatusInternalServerError, message)
+		respondWithError(w, 400, err)
+		return
+	}
+
+	chirp, err := cfg.Db.SaveChirp(user_id, cleanInput(params.Body))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respondWithJSON(w, 201, chirp)
@@ -61,9 +65,41 @@ func (cfg *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 func (cfg *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
 	res, err := cfg.Db.GetChirps()
 	if err != nil {
-		message := fmt.Sprintf("Couldn't get chirps: %v", err)
-		respondWithError(w, http.StatusInternalServerError, message)
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 	respondWithJSON(w, 200, res)
+}
+
+func (cfg *ApiConfig) deleteChirp(w http.ResponseWriter, r *http.Request) {
+	user_id, err := cfg.getUserIdFromAccessToken(r)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, err)
+		return
+	}
+
+	param_id, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	chirp, err := cfg.Db.GetChirpById(param_id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if chirp.AuthorId != user_id {
+		respondWithError(w, http.StatusForbidden, errors.New("no permissions to delete"))
+		return
+	}
+
+	err = cfg.Db.DeleteChirp(param_id)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, err)
+		return
+	}
+
+	respondWithJSON(w, 200, "")
 }

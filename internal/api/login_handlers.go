@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -30,31 +31,31 @@ const REFRESH_ISSUER = "chirpy-refresh"
 func (cfg *ApiConfig) logIn(w http.ResponseWriter, r *http.Request) {
 	params, err := getParamsFromRequest(loginResource{}, r)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	user, err := cfg.Db.GetUserByEmail(params.Email)
 
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		respondWithError(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if bcrypt.CompareHashAndPassword(user.Password, []byte(params.Password)) != nil {
-		respondWithError(w, http.StatusUnauthorized, "Email or password is wrong")
+		respondWithError(w, http.StatusUnauthorized, errors.New("email or password is wrong"))
 		return
 	}
 
 	access_token, err := cfg.createAccessToken(ACCESS_ISSUER, user.Id)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, err.Error())
+		respondWithError(w, http.StatusUnauthorized, err)
 		return
 	}
 
 	refresh_token, err := cfg.createAccessToken(REFRESH_ISSUER, user.Id)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, err.Error())
+		respondWithError(w, http.StatusUnauthorized, err)
 		return
 	}
 
@@ -70,26 +71,44 @@ func (cfg *ApiConfig) logIn(w http.ResponseWriter, r *http.Request) {
 func (cfg *ApiConfig) refresh(w http.ResponseWriter, r *http.Request) {
 	token, err := cfg.getTokenFromHeader(REFRESH_ISSUER, r)
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, err.Error())
+		respondWithError(w, http.StatusUnauthorized, err)
 		return
 	}
 
 	tokens, err := cfg.Db.GetTokens()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
 	for _, tk := range tokens {
-		if token == tk {
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+		if token.Raw == tk {
+			respondWithError(w, http.StatusUnauthorized, errors.New("access denied"))
 			return
 		}
 	}
 
 	new_access_token, err := cfg.createAccessTokenFromHeader(token)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	respondWithJSON(w, 200, refreshResponse{Token: new_access_token})
 }
 
-// save token as key and value current time when revoking
-func (cfg *ApiConfig) revoke(w http.ResponseWriter, r *http.Request) {}
+func (cfg *ApiConfig) revoke(w http.ResponseWriter, r *http.Request) {
+	token, err := cfg.getTokenFromHeader(REFRESH_ISSUER, r)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	err = cfg.Db.RevokeToken(token.Raw)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	respondWithJSON(w, 200, "")
+}

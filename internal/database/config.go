@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"sync"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 type DB struct {
@@ -20,7 +18,7 @@ type DB struct {
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
 	Users  map[int]User  `json:"users"`
-	Tokens []*jwt.Token  `json:"tokens"`
+	Tokens map[int]Token `json:"tokens"`
 }
 
 func NewDB(path string) *DB {
@@ -55,7 +53,11 @@ func (db *DB) LoadDB() (DBStructure, error) {
 	structure := DBStructure{}
 
 	if len(data) == 0 {
-		return DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User), Tokens: []*jwt.Token{}}, nil
+		return DBStructure{
+			Chirps: make(map[int]Chirp),
+			Users:  make(map[int]User),
+			Tokens: make(map[int]Token),
+		}, nil
 	}
 
 	err = json.Unmarshal(data, &structure)
@@ -89,7 +91,7 @@ func (db *DB) removeDataWhenDebug() error {
 	dbg := flag.Bool("debug", false, "Enable debug mode")
 	flag.Parse()
 	if *dbg {
-		err := db.WriteDB(DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User)})
+		err := db.WriteDB(DBStructure{Chirps: make(map[int]Chirp), Users: make(map[int]User), Tokens: make(map[int]Token)})
 		if err != nil {
 			err_message := fmt.Sprintf("Couldn't empty database: %v", err)
 			return errors.New(err_message)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,10 +12,8 @@ import (
 )
 
 func (cfg *ApiConfig) createAccessToken(issuer string, id int) (string, error) {
-	var new_time_duration time.Duration
-	if issuer == ACCESS_ISSUER {
-		new_time_duration = time.Hour
-	} else {
+	var new_time_duration time.Duration = time.Hour
+	if issuer == REFRESH_ISSUER {
 		new_time_duration = time.Hour * time.Duration(24*60) // 60 days
 	}
 
@@ -30,6 +29,7 @@ func (cfg *ApiConfig) createAccessToken(issuer string, id int) (string, error) {
 		message := fmt.Sprintf("couldn't sign jwt: %s", err)
 		return "", errors.New(message)
 	}
+
 	return jwt, nil
 }
 
@@ -51,16 +51,17 @@ func (cfg *ApiConfig) createAccessTokenFromHeader(token *jwt.Token) (string, err
 		message := fmt.Sprintf("couldn't sign jwt: %s", err)
 		return "", errors.New(message)
 	}
+
 	return jwt, nil
 }
 
 func (cfg *ApiConfig) getTokenFromHeader(expectedIssure string, r *http.Request) (token *jwt.Token, err error) {
 	auth := r.Header.Get("Authorization") //Authorization: Bearer <token>
 	if auth == "" {
-		return token, errors.New("no token present")
+		return token, errors.New("token is invalid")
 	}
-	refresh_token := strings.Split(auth, " ")[1]
 
+	refresh_token := strings.Split(auth, " ")[1]
 	token, err = jwt.ParseWithClaims(refresh_token, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(cfg.JWT), nil
 	})
@@ -76,24 +77,31 @@ func (cfg *ApiConfig) getTokenFromHeader(expectedIssure string, r *http.Request)
 	return token, nil
 }
 
-func (cfg *ApiConfig) validateToken(r *http.Request) (string, error) {
+func (cfg *ApiConfig) getUserIdFromAccessToken(r *http.Request) (zero int, err error) {
 	token, err := cfg.getTokenFromHeader(ACCESS_ISSUER, r)
 	if err != nil {
-		return "", errors.New("user is not authorized")
+		return zero, errors.New("user is not authorized")
 	}
 
 	issuer, err := token.Claims.GetIssuer()
 	if err != nil {
-		return "", errors.New("couldn't get issuer from token")
+		return zero, errors.New("couldn't get issuer from token")
 	}
 
 	if issuer != "chirpy-access" {
-		return "", errors.New("wrong token provided")
+		return zero, errors.New("wrong token provided")
 	}
 
 	user_id, err := token.Claims.GetSubject()
 	if err != nil {
-		return "", errors.New("couldn't get id from token")
+		return zero, errors.New("couldn't get id from token")
 	}
-	return user_id, nil
+
+	intId, err := strconv.Atoi(user_id)
+	if err != nil {
+		err_message := fmt.Sprintf("getUserIdFromAccessToken: parsing error: %v", user_id)
+		return zero, errors.New(err_message)
+	}
+
+	return intId, nil
 }

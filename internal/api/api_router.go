@@ -13,6 +13,7 @@ func NewApiRouter(apiConfig *ApiConfig) *chi.Mux {
 	apiRouter.Post("/chirps", apiConfig.createChirp)
 	apiRouter.Get("/chirps", apiConfig.getChirps)
 	apiRouter.Get("/chirps/{chirpID}", apiConfig.getChirpById)
+	apiRouter.Delete("/chirps/{chirpID}", apiConfig.deleteChirp)
 
 	apiRouter.Post("/users", apiConfig.createUser)
 	apiRouter.Put("/users", apiConfig.updateUser)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -15,7 +14,6 @@ type User struct {
 	Email    string `json:"email"`
 }
 
-// CreateUser creates a new chirp and saves it to disk
 func (db *DB) CreateUser(password, email string) (User, error) {
 	data, err := db.LoadDB()
 	if err != nil {
@@ -46,7 +44,7 @@ func (db *DB) CreateUser(password, email string) (User, error) {
 	return user, err
 }
 
-func (db *DB) UpdateUser(id, password, email string) (User, error) {
+func (db *DB) UpdateUser(id int, password, email string) (User, error) {
 	data, err := db.LoadDB()
 	if err != nil {
 		return User{}, err
@@ -58,19 +56,13 @@ func (db *DB) UpdateUser(id, password, email string) (User, error) {
 		return User{}, errors.New(err_message)
 	}
 
-	intId, err := strconv.Atoi(id)
-	if err != nil {
-		err_message := fmt.Sprintf("UpdateUser: parsing error: %v", data)
-		return User{}, errors.New(err_message)
-	}
-
 	user := User{
-		Id:       intId,
+		Id:       id,
 		Email:    email,
 		Password: encrypted_pass,
 	}
 
-	data.Users[intId] = user
+	data.Users[id] = user
 	err = db.WriteDB(data)
 	if err != nil {
 		err_message := fmt.Sprintf("CreateUser: Couldn't write file: %v", data)
@@ -96,6 +88,7 @@ func (db *DB) GetUsers() ([]User, error) {
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Id < users[j].Id
 	})
+
 	return users, nil
 }
 
