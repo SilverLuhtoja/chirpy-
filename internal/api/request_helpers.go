@@ -16,6 +16,7 @@ type ApiConfig struct {
 	FileserverHits int
 	Db             *db.DB
 	JWT            string
+	PolkaKey       string
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {

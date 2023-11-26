@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
@@ -15,10 +14,11 @@ type loginResource struct {
 }
 
 type loginResponse struct {
-	Id           string `json:"id"`
+	Id           int    `json:"id"`
 	Email        string `json:"email"`
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
+	IsChirpyRed  bool   `json:"is_chirpy_red"`
 }
 
 type refreshResponse struct {
@@ -60,10 +60,11 @@ func (cfg *ApiConfig) logIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := loginResponse{
-		Id:           fmt.Sprint(user.Id),
+		Id:           user.Id,
 		Email:        user.Email,
 		Token:        access_token,
 		RefreshToken: refresh_token,
+		IsChirpyRed:  user.IsChirpyRed,
 	}
 	respondWithJSON(w, 200, response)
 }

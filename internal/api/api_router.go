@@ -21,5 +21,7 @@ func NewApiRouter(apiConfig *ApiConfig) *chi.Mux {
 	apiRouter.Post("/refresh", apiConfig.refresh)
 	apiRouter.Post("/revoke", apiConfig.revoke)
 
+	apiRouter.Post("/polka/webhooks", apiConfig.GrantMemberhip)
+
 	return apiRouter
 }

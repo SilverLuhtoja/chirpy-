@@ -16,8 +16,9 @@ func main() {
 	port := "8080"
 	godotenv.Load()
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaKey := os.Getenv("POLKA_KEY")
 	db := db.NewDB("database.json")
-	apiConfig := &api.ApiConfig{Db: db, JWT: jwtSecret}
+	apiConfig := &api.ApiConfig{Db: db, JWT: jwtSecret, PolkaKey: polkaKey}
 
 	router := chi.NewRouter()
 	apiRouter := api.NewApiRouter(apiConfig)

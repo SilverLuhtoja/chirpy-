@@ -9,9 +9,10 @@ import (
 )
 
 type User struct {
-	Id       int    `json:"id"`
-	Password []byte `json:"password,omitempty"`
-	Email    string `json:"email"`
+	Id          int    `json:"id"`
+	Password    []byte `json:"password,omitempty"`
+	Email       string `json:"email"`
+	IsChirpyRed bool   `json:"is_chirpy_red"`
 }
 
 func (db *DB) CreateUser(password, email string) (User, error) {
