@@ -15,24 +15,19 @@ type messageChirp struct {
 }
 
 func (cfg *ApiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.Db.GetChirps()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err)
-		return
-	}
-
 	param, err := strconv.Atoi(chi.URLParam(r, "chirpID"))
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
-	for _, chirp := range chirps {
-		if chirp.Id == param {
-			respondWithJSON(w, 200, chirp)
-			return
-		}
+
+	chirp, err := cfg.Db.GetChirpById(param)
+	if err != nil {
+		http.NotFound(w, r)
+		return
 	}
-	http.NotFound(w, r)
+
+	respondWithJSON(w, 200, chirp)
 }
 
 func (cfg *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
@@ -63,11 +58,14 @@ func (cfg *ApiConfig) createChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *ApiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-	res, err := cfg.Db.GetChirps()
+	author_id := r.URL.Query().Get("author_id")
+	sortParam := r.URL.Query().Get("sort")
+	res, err := cfg.Db.GetChirps(author_id, sortParam)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err)
 		return
 	}
+
 	respondWithJSON(w, 200, res)
 }
 

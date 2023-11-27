@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 type Chirp struct {
@@ -34,7 +35,7 @@ func (db *DB) SaveChirp(user_id int, body string) (Chirp, error) {
 	return chirp, err
 }
 
-func (db *DB) GetChirps() ([]Chirp, error) {
+func (db *DB) GetChirps(author_id, sortParam string) ([]Chirp, error) {
 	data, err := db.LoadDB()
 	if err != nil {
 		return []Chirp{}, err
@@ -45,9 +46,21 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 		chirps = append(chirps, val)
 	}
 
+	if author_id != "" {
+		id, err := strconv.Atoi(author_id)
+		if err != nil {
+			return []Chirp{}, err
+		}
+		chirps = filterChirpsByAuthorId(id, chirps)
+	}
+
 	sort.Slice(chirps, func(i, j int) bool {
+		if sortParam == "desc" {
+			return chirps[i].Id > chirps[j].Id
+		}
 		return chirps[i].Id < chirps[j].Id
 	})
+
 	return chirps, nil
 }
 
@@ -62,6 +75,7 @@ func (db *DB) GetChirpById(id int) (Chirp, error) {
 			return chirp, nil
 		}
 	}
+
 	return Chirp{}, errors.New("no chirp found")
 }
 
@@ -78,4 +92,15 @@ func (db *DB) DeleteChirp(id int) error {
 	}
 
 	return nil
+}
+
+func filterChirpsByAuthorId(author_id int, list []Chirp) []Chirp {
+	filtered_list := []Chirp{}
+	for _, chirp := range list {
+		if author_id == chirp.AuthorId {
+			filtered_list = append(filtered_list, chirp)
+		}
+	}
+
+	return filtered_list
 }
